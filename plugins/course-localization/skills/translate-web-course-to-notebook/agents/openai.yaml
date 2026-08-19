@@ -1,0 +1,4 @@
+interface:
+  display_name: "Translate Web Course to Notebook"
+  short_description: "Translate and audit courses in Jupyter notebooks"
+  default_prompt: "Use $translate-web-course-to-notebook to translate or audit these course pages in my Jupyter notebook."
