@@ -97,6 +97,12 @@ def new_id(used_ids: set[str]) -> str:
             return candidate
 
 
+def mergeable_content_cells(first: dict, second: dict) -> bool:
+    first_properties = {key: value for key, value in first.items() if key not in {"id", "source"}}
+    second_properties = {key: value for key, value in second.items() if key not in {"id", "source"}}
+    return first_properties == second_properties
+
+
 def normalized_notebook(notebook: dict) -> dict:
     result = copy.deepcopy(notebook)
     original_cells = notebook.get("cells")
@@ -139,6 +145,10 @@ def normalized_notebook(notebook: dict) -> dict:
 
             if output and kind == "content" and output[-1][1] == "content":
                 previous, _ = output[-1]
+                if not mergeable_content_cells(previous, cell):
+                    raise ValueError(
+                        "cannot merge adjacent Markdown content cells without losing metadata"
+                    )
                 combined = "".join(previous.get("source", [])).strip()
                 combined += "\n\n" + block.strip()
                 previous["source"] = combined.splitlines(keepends=True)

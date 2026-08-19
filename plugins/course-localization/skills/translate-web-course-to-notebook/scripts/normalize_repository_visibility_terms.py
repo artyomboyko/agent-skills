@@ -103,6 +103,8 @@ VISIBILITY_LABELS = (
     (re.compile(r"\*\*Внутренний(?:\s*\(Internal\))?:\*\*", re.IGNORECASE),
      "**Внутренний репозиторий (Internal repository):**"),
 )
+FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+INLINE_CODE_RE = re.compile(r"(`+)(?!`)(.*?)(?<!`)\1", re.DOTALL)
 
 
 def preserve_initial_case(source: str, replacement: str) -> str:
@@ -167,6 +169,62 @@ def normalize_text(text: str) -> tuple[str, int]:
     )
     substitute(PHRASE_RE, replace_phrase)
     return text, changes
+
+
+def normalize_markdown_lines(
+    lines: list[str], fence: tuple[str, int] | None = None
+) -> tuple[list[str], int, tuple[str, int] | None]:
+    parts: list[str] = []
+    changes = 0
+
+    for line in lines:
+        clean = line.rstrip("\r\n")
+        fence_match = FENCE_RE.match(clean)
+        if fence_match:
+            marker = fence_match.group(1)
+            candidate = (marker[0], len(marker))
+            if fence is None:
+                fence = candidate
+            elif candidate[0] == fence[0] and candidate[1] >= fence[1]:
+                fence = None
+            parts.append(line)
+            continue
+        if fence is not None:
+            parts.append(line)
+            continue
+
+        last_end = 0
+        prose_parts: list[str] = []
+        for match in INLINE_CODE_RE.finditer(line):
+            prose, count = normalize_text(line[last_end : match.start()])
+            prose_parts.append(prose)
+            prose_parts.append(match.group(0))
+            changes += count
+            last_end = match.end()
+        prose, count = normalize_text(line[last_end:])
+        prose_parts.append(prose)
+        changes += count
+        parts.append("".join(prose_parts))
+
+    return parts, changes, fence
+
+
+def normalize_markdown_source(source: list[str]) -> tuple[list[str], int]:
+    normalized: list[str] = []
+    changes = 0
+    fence: tuple[str, int] | None = None
+    for element in source:
+        lines, element_changes, fence = normalize_markdown_lines(
+            element.splitlines(keepends=True), fence
+        )
+        normalized.append("".join(lines))
+        changes += element_changes
+    return normalized, changes
+
+
+def normalize_markdown_text(text: str) -> tuple[str, int]:
+    parts, changes, _ = normalize_markdown_lines(text.splitlines(keepends=True))
+    return "".join(parts), changes
 
 
 def notebook_paths(target: Path) -> list[Path]:
@@ -256,14 +314,11 @@ def markdown_source_replacements(text: str) -> list[tuple[int, int, str, int]]:
             continue
         source = cell.get("source", [])
         if isinstance(source, list):
-            normalized_source: object = [normalize_text(str(line))[0] for line in source]
+            normalized_source, changes = normalize_markdown_source(source)
         else:
-            normalized_source = normalize_text(str(source))[0]
+            normalized_source, changes = normalize_markdown_text(str(source))
         if normalized_source == source:
             continue
-        changes = sum(
-            normalize_text(str(line))[1] for line in source
-        ) if isinstance(source, list) else normalize_text(str(source))[1]
         replacements.append(
             (
                 cells_start + cell_start + source_start,
