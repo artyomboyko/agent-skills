@@ -1,7 +1,7 @@
 ---
 name: translate-web-course-to-notebook
 description: Translate or audit pages from any online course, educational website, tutorial, or documentation portal into a target Jupyter Notebook (.ipynb), preserving the original hierarchy, learner-visible instructional content, code, every source hyperlink, interface labels, dynamic or randomized quizzes, answers visibly presented on the rendered source page, and images. Use when the user provides course URLs plus a notebook or image directory, asks to update an existing course translation, audit lost or bare links, or normalize a notebook so every heading occupies its own Markdown cell followed by one content cell.
-compatibility: Requires a configured Python 3.10+ interpreter with no third-party Python dependencies; network/web access is required to retrieve course pages, and authenticated or browser-capable access may be required for dynamic or login-protected content.
+compatibility: Requires Python 3.10+; the bundled scripts have no third-party Python dependencies; network/web access and browser-capable rendered-page access are required for source inspection, and authenticated browser/session access may be required for protected content.
 ---
 
 # Перевод веб-курса в Jupyter Notebook
@@ -9,9 +9,12 @@ compatibility: Requires a configured Python 3.10+ interpreter with no third-part
 ## Выполнить работу
 
 1. Проверить целевой ноутбук и соседние материалы курса. Сохранить существующий стиль, метаданные и несвязанные ячейки.
-2. Получить актуальное содержимое каждого указанного URL. Для динамической или доступной только после входа страницы использовать доступный агенту механизм веб-доступа, включая браузер или аутентифицированную сессию, если это необходимо.
+2. Открыть каждый указанный URL с помощью механизма, способного показать полностью отрисованную страницу, и использовать её видимое учащемуся содержимое как единственный авторитетный источник. Дождаться завершения динамической загрузки перед извлечением.
    - Дождаться загрузки асинхронных учебных блоков, особенно тестов. Если первая проверка не показывает вопросы, подождать и проверить страницу повторно.
    - Считать загрузку теста завершённой только после появления всех видимых групп вопросов и вариантов ответа и стабилизации их количества.
+   - Не использовать вместо отрисованной страницы необработанные HTTP-ответы, HTML, загруженный через Invoke-WebRequest или curl-подобные средства, первоначальный HTML или исходный код страницы, статический Markdown, YAML, JSON, ответы API, кэши поисковых систем или зеркала. Эти источники нельзя использовать для определения учебного содержимого, видимого учащемуся.
+   - Не использовать необработанные HTTP-запросы или прямое получение ресурсов как замену осмотру страницы. После осмотра отрисованной страницы их можно применять только вторично для узких задач, например для скачивания изображения, URL которого найден на странице, или получения точного `href`, если это необходимо.
+   - Если доступ к отрисованной странице недоступен либо страницу нельзя надёжно отрисовать, остановиться и сообщить об ограничении. Не переходить молча к HTML или другому неотрисованному источнику.
 3. Обрабатывать только указанные страницы. Не переходить к соседним урокам без просьбы пользователя.
 4. Извлечь основной учебный материал. Исключить навигацию сайта, хлебные крошки, cookie-баннеры, рекламу, формы обратной связи и служебные элементы.
 5. До перевода составить реестр всех ссылок в основном учебном материале: исходная страница и раздел, видимая подпись, точный `href`. Учитывать ссылки в абзацах, списках, таблицах, предупреждениях, кнопках упражнения и подписях изображений. Не полагаться только на извлечённый текст: он часто теряет `href`.
